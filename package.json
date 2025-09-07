@@ -1,0 +1,32 @@
+{
+  "name": "@tripod311/currents",
+  "version": "0.0.0",
+  "description": "Lightweight pipeline API constructor",
+  "keywords": [
+    "js",
+    "ts",
+    "api",
+    "routing"
+  ],
+  "license": "MIT",
+  "author": "Tripod ind.tripod@gmail.com",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "devDependencies": {
+    "@tripod311/flow": "^0.0.0",
+    "@types/node": "^24.3.1",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@types/mime-types": "^3.0.1",
+    "mime-types": "^3.0.1"
+  }
+}
