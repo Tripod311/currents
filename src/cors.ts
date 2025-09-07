@@ -2,9 +2,9 @@ import { Context } from "./context.js"
 
 export interface CorsOptions {
 	allowedOrigin: string | string[];
-	allowedMethods: string[];
-	allowedHeaders: string[];
-	credentials: boolean;
+	allowedMethods?: string[];
+	allowedHeaders?: string[];
+	credentials?: boolean;
 }
 
 export function Cors (options: CorsOptions) {

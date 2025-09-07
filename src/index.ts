@@ -37,6 +37,8 @@ export {
 	Context,
 	Router,
 	ServeStatic,
+	ParseCookies,
+	SetCookie,
 	Cors,
 	SecurityHeaders,
 	BinaryBody,

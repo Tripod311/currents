@@ -10,7 +10,7 @@ import { Context } from "./context.js"
 
 export interface CurrentsOptions {
 	forceHTTPVersion?: 1 | 2;
-	certificates?: { cert: string, key: string, ca: string };
+	certificates?: { cert: string, key: string, ca?: string };
 }
 
 type Server = HttpServer | HttpsServer | Http2Server | Http2SecureServer;
@@ -158,7 +158,7 @@ export class Currents {
 				cert: fs.readFileSync(options.certificates!.cert),
 				key: fs.readFileSync(options.certificates!.key)
 			};
-			if (options.certificates!.ca !== undefined) loadedCerts.ca = fs.readFileSync(options.certificates!.ca);
+			if (options.certificates.ca !== undefined) loadedCerts.ca = fs.readFileSync(options.certificates.ca);
 
 			if (options.forceHTTPVersion === 1) {
 				result = new Currents(1, https.createServer(loadedCerts));

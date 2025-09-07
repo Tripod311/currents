@@ -21,7 +21,6 @@
     "README.md"
   ],
   "devDependencies": {
-    "@tripod311/flow": "^0.0.0",
     "@types/node": "^24.3.1",
     "typescript": "^5.9.2"
   },
