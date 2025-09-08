@@ -52,7 +52,14 @@ export class Currents {
 			res: res
 		});
 
-		this.processRequest(ctx);
+		try {
+			ctx.parsePath();
+
+			this.processRequest(ctx);
+		} catch (err: any) {
+			// only if path is incorrect
+			this._errorHandler(`Bad request: ${err.toString()}`, ctx);
+		}
 	}
 
 	handleRequestV2 (stream: ServerHttp2Stream, headers: IncomingHttpHeaders) {
