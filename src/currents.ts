@@ -204,6 +204,6 @@ export class Currents {
 	}
 
 	static async defaultNotFoundHandler (ctx: Context) {
-		ctx.status(404).text(`Cannot get ${ctx.path}`);
+		ctx.status(404).text(`Cannot find ${ctx.path}`);
 	}
 }
