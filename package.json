@@ -27,5 +27,9 @@
   "dependencies": {
     "@types/mime-types": "^3.0.1",
     "mime-types": "^3.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tripod311/currents.git"
   }
 }
