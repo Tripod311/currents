@@ -12,9 +12,14 @@ export interface ServeStaticOptions {
 
 export function ServeStatic (options: ServeStaticOptions) {
 	let fallbackFull: string | undefined;
+	let cacheControl: string = "max-age=0, must-revalidate";
 
 	if (options.fallback !== undefined) {
 		fallbackFull = path.resolve(options.rootDir, options.fallback);
+	}
+
+	if (options.cacheControl) {
+		cacheControl = options.cacheControl.join(",");
 	}
 
 	return async (ctx: Context) => {
@@ -42,6 +47,7 @@ export function ServeStatic (options: ServeStaticOptions) {
 			ctx
 			.status(200)
 			.responseHeader("Content-Type", mime.lookup(fullPath) || "application/octet-stream")
+			.responseHeader("Cache-Control", cacheControl)
 			.send(fs.createReadStream(fullPath), stats.size);
 		} else {
 			const [startStr, endStr] = range.replace(/bytes=/, "").split("-");
