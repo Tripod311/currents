@@ -71,6 +71,7 @@ export function ServeStatic (options: ServeStaticOptions) {
 			.responseHeader("Content-Range", `bytes ${start}-${end}/${stats.size}`)
 			.responseHeader("Accept-Ranges", "bytes")
 			.responseHeader("Content-Type", mime.lookup(fullPath) || "application/octet-stream")
+			.responseHeader("Cache-Control", cacheControl)
 			.send(fs.createReadStream(fullPath, { start, end }), end - start + 1);
 		}
 	}
