@@ -3,7 +3,7 @@ import { Context } from "./context.js"
 export interface CorsOptions {
 	allowedOrigin: string | string[];
 	allowedMethods?: string[];
-	allowedHeaders?: string[];
+	allowedHeaders?: '*' | string[];
 	credentials?: boolean;
 }
 
@@ -35,7 +35,11 @@ export function Cors (options: CorsOptions) {
 				ctx.responseHeader("Access-Control-Allow-Methods", options.allowedMethods.join(", "));
 			}
 			if (options.allowedHeaders) {
-				ctx.responseHeader("Access-Control-Allow-Headers", options.allowedHeaders.join(", "));
+				if (options.allowedHeaders === '*') {
+					ctx.responseHeader("Access-Control-Allow-Headers", ctx.headers['access-control-request-headers'] || "Content-Type");
+				} else {
+					ctx.responseHeader("Access-Control-Allow-Headers", options.allowedHeaders.join(", "));
+				}
 			}
 			ctx.status(204).end();
 		}
