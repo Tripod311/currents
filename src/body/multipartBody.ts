@@ -2,7 +2,7 @@ import { Context } from "../context.js"
 import BinaryBody from "./binaryBody.js"
 
 const RN_MARK_2 = Buffer.from("\r\n\r\n", "utf8");
-const RN_MARK = '\r\n'
+const RN_MARK = '\r\n';
 
 interface MultipartFile {
 	fileName: string;

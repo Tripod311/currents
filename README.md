@@ -166,7 +166,8 @@ import { BinaryBody, TextBody, JsonBody, FormBody, MultipartBody } from "@tripod
 * **TextBody** → UTF-8 string body
 * **JsonBody** → parses JSON
 * **FormBody** → parses `application/x-www-form-urlencoded`
-* **MultipartBody** → parses multipart bodies
+* **MultipartBody** → parses multipart bodies (only for tests, stores request in memory, can cause OOM errors and vulnerable to attacks)
+* **StreamingMultipartBody** → streaming multipart/form-data parser, for real cases
 
 ---
 
@@ -226,11 +227,13 @@ app.get('/*', [
 	Cors({
 		allowedOrigin: string | string[],
 		allowedMethods?: string[],
-		allowedHeaders?: string[],
+		allowedHeaders?: '*' | string[],
 		credentials?: boolean
 	})
 ])
 ```
+
+Passing asterisk in allowedHeaders field will make cors reply with access-control-request-headers that browser requires.
 
 ---
 
@@ -255,3 +258,124 @@ app.get('/*', [
 	})
 ])
 ```
+
+---
+
+### Streaming Multipart
+
+``` ts
+import { StreamingMultipartBody } from "@tripod311/currents"
+import type { StreamingMultipartResult, StreamingMultipartFile, StreamingMultipartOptions } from "@tripod311/currents"
+
+app.post('/*', [
+    StreamingMultipartBody({
+        tmpDir: "/path/to/folder/for/temp/files",
+        maxRequestSize: 1024 * 1024 * 150,          // 150 MB
+        maxFileSize: 1024 * 1024 * 100,             // 100 MB
+        maxFieldSize: 1024 * 1024 * 10,             // 10 MB
+        maxPartHeaderSize: 1024 * 16,               // 16 KB
+        maxParts: 50,
+        maxFiles: 10,
+        requestTimeout: 1000 * 60 * 5,              // 5 min
+        chunkTimeout: 1000 * 30                     // 30 sec
+    })
+])
+```
+
+This middleware provides a **streaming, production-safe
+multipart/form-data parser** designed for handling large file uploads
+(up to \~100--200 MB) without loading entire files into memory.
+
+It uses:
+
+-   a streaming state machine
+-   strict size limits
+-   request and chunk timeouts
+-   disk-backed file storage
+-   DoS protection (limits on parts, headers, files, etc.)
+
+The values shown above are example limits, but they are reasonable
+defaults for real-world API usage and can safely be used as a starting
+point.
+
+------------------------------------------------------------------------
+
+#### Result structure
+
+After successful parsing, `ctx.body` will contain:
+
+``` ts
+export type StreamingMultipartResult =
+    Record<string, string | StreamingMultipartFile>;
+```
+
+Text fields are returned as strings.\
+File fields are returned as `StreamingMultipartFile` instances:
+
+``` ts
+export class StreamingMultipartFile {
+    public tmpLink: string;
+    public originalFileName: string;
+    public mime: string;
+
+    constructor (tmpLink: string, originalFileName: string, mime: string) {
+        this.tmpLink = tmpLink;
+        this.originalFileName = originalFileName;
+        this.mime = mime;
+    }
+
+    async move (newPath: string) {
+        await fs.promises.rename(this.tmpLink, newPath);
+        await this.clear();
+    }
+
+    async clear () {
+        await fs.promises.rm(this.tmpLink);
+    }
+}
+```
+
+##### Example
+
+``` ts
+app.post('/upload', async (ctx) => {
+    const body = ctx.body as StreamingMultipartResult;
+
+    const username = body.username as string;
+    const avatar = body.avatar as StreamingMultipartFile;
+
+    await avatar.move(`/permanent/storage/${avatar.originalFileName}`);
+});
+```
+
+------------------------------------------------------------------------
+
+#### ⚠ Temporary file lifecycle
+
+Uploaded files are written to the temporary directory specified in
+`tmpDir`.
+
+You are responsible for either:
+
+-   moving the file to permanent storage using `move()`, or
+-   manually deleting it using `clear()`.
+
+The middleware **only removes temporary files automatically in case of
+an error** (e.g. size limit exceeded, timeout, malformed multipart).
+
+If the request completes successfully, file cleanup is your
+responsibility.
+
+------------------------------------------------------------------------
+
+#### Why streaming?
+
+This parser:
+
+-   never loads full files into memory
+-   processes request data chunk by chunk
+-   enforces strict limits to prevent OOM and slowloris attacks
+-   validates multipart boundaries safely across chunk splits
+
+It is suitable for APIs that need controlled large-file handling without
+relying on third-party multipart libraries.

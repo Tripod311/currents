@@ -10,6 +10,7 @@ import TextBody from "./body/textBody.js"
 import JsonBody from "./body/jsonBody.js"
 import FormBody from "./body/formBody.js"
 import MultipartBody from "./body/multipartBody.js"
+import StreamingMultipartBody, { StreamingMultipartFile } from "./body/streamingMultipartBody.js"
 
 import type { CurrentsOptions, ErrorHandler } from "./currents.js"
 import type { RawHttp1, RawHttp2, RawHttp } from "./context.js"
@@ -18,6 +19,7 @@ import type { ServeStaticOptions } from "./static.js"
 import type { CookieOptions } from "./cookie.js"
 import type { CorsOptions } from "./cors.js"
 import type { SecurityHeadersOptions } from "./security.js"
+import type { StreamingMultipartOptions, StreamingMultipartResult } from "./body/streamingMultipartBody.js"
 
 export type {
 	CurrentsOptions,
@@ -29,7 +31,9 @@ export type {
 	RouteMatch,
 	Route,
 	CorsOptions,
-	SecurityHeadersOptions
+	SecurityHeadersOptions,
+	StreamingMultipartOptions,
+	StreamingMultipartResult
 }
 
 export {
@@ -45,5 +49,7 @@ export {
 	TextBody,
 	JsonBody,
 	FormBody,
-	MultipartBody
+	MultipartBody,
+	StreamingMultipartBody,
+	StreamingMultipartFile
 }
