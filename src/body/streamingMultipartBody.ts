@@ -32,7 +32,7 @@ export class StreamingMultipartFile {
 	}
 
 	async clear () {
-		await fs.promises.rm(this.tmpLink);
+		await fs.promises.rm(this.tmpLink, { force: true });
 	}
 }
 
@@ -409,6 +409,7 @@ export default function StreamingMultipartBody (options: StreamingMultipartOptio
 			await parser.readyPromise;
 			parser.clearTimeouts();
 			ctx.body = parser.result;
+			ctx.locals.bodyCleanup = parser.cleanup;
 		} catch (err: any) {
 			await parser.cleanup();
 

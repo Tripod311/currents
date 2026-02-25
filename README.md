@@ -366,6 +366,18 @@ an error** (e.g. size limit exceeded, timeout, malformed multipart).
 If the request completes successfully, file cleanup is your
 responsibility.
 
+Simplest way to cleanup:
+
+```ts
+app.post('/upload', async (ctx) => {
+    const body = ctx.body as StreamingMultipartResult;
+
+    // Some actions with body
+
+    await ctx.locals.bodyCleanup();
+});
+````
+
 ------------------------------------------------------------------------
 
 #### Why streaming?
