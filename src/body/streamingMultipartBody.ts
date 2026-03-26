@@ -28,7 +28,6 @@ export class StreamingMultipartFile {
 
 	async move (newPath: string) {
 		await fs.promises.rename(this.tmpLink, newPath);
-		await this.clear();
 	}
 
 	async clear () {
