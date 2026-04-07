@@ -44,7 +44,7 @@ class Parser {
 	private firstBoundary: Buffer;
 	private centerBoundary: Buffer;
 	private stream: Readable;
-	private state: 'boundary' | 'header' | 'body' | 'file' | 'end' = 'boundary';
+	private state: 'boundary' | 'header' | 'body' | 'file' | 'end' | 'error' = 'boundary';
 	public readyPromise: Promise<void>;
 	private resolve!: () => void;
 	private reject!: (err: any) => void;
@@ -106,6 +106,7 @@ class Parser {
 					this.processFile(chunk);
 					break;
 				case "end":
+				case "error":
 					return;
 			}
 		} catch (err: any) {
@@ -260,7 +261,8 @@ class Parser {
 			this.tmpFileName = this.options.tmpDir + "/" + crypto.randomBytes(32).toString('hex');
 			this.fileStream = fs.createWriteStream(this.tmpFileName);
 			this.pendingFileStreams++;
-			this.fileStream.on("finish", this.fileStreamFinish.bind(this));
+			this.fileStream.on("close", this.fileStreamFinish.bind(this));
+			this.fileStream.on("error", this.fileStreamFailed.bind(this));
 			this.fileByteCounter = 0;
 		}
 
@@ -322,6 +324,12 @@ class Parser {
 		this.pendingFileStreams--;
 
 		if (this.inStreamFinished) this.finalize();
+	}
+
+	fileStreamFailed (err: any) {
+		this.state = "error";
+
+		this.reject("Currents file write error: " + err.toString());
 	}
 
 	finalize () {
