@@ -261,7 +261,7 @@ class Parser {
 			this.tmpFileName = this.options.tmpDir + "/" + crypto.randomBytes(32).toString('hex');
 			this.fileStream = fs.createWriteStream(this.tmpFileName);
 			this.pendingFileStreams++;
-			this.fileStream.on("close", this.fileStreamFinish.bind(this));
+			this.fileStream.on("finish", this.fileStreamFinish.bind(this));
 			this.fileStream.on("error", this.fileStreamFailed.bind(this));
 			this.fileByteCounter = 0;
 		}
@@ -323,7 +323,7 @@ class Parser {
 	fileStreamFinish () {
 		this.pendingFileStreams--;
 
-		if (this.inStreamFinished) this.finalize();
+		if (this.pendingFileStreams === 0 && this.inStreamFinished) this.finalize();
 	}
 
 	fileStreamFailed (err: any) {
