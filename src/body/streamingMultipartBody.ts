@@ -65,6 +65,9 @@ class Parser {
 	private chunkTimeout: ReturnType<typeof setTimeout>;
 	private requestTimeout: ReturnType<typeof setTimeout>;
 
+	private pendingFileStreams = 0;
+	private inStreamFinished = false;
+
 	constructor (options: StreamingMultipartOptions, boundary: string, stream: Readable) {
 		this.options = options;
 		this.firstBoundary = Buffer.from('--' + boundary);
@@ -74,6 +77,7 @@ class Parser {
 		this.stream.on("data", this.processChunk.bind(this));
 		this.stream.on("end", this.finalize.bind(this));
 		this.stream.on("close", this.handleClose.bind(this));
+		this.stream.on("finish", this.mainStreamFinish.bind(this));
 
 		this.readyPromise = new Promise((resolve, reject) => {
 			this.resolve = resolve;
@@ -255,6 +259,8 @@ class Parser {
 		if (this.fileStream === null) {
 			this.tmpFileName = this.options.tmpDir + "/" + crypto.randomBytes(32).toString('hex');
 			this.fileStream = fs.createWriteStream(this.tmpFileName);
+			this.pendingFileStreams++;
+			this.fileStream.on("finish", this.fileStreamFinish.bind(this));
 			this.fileByteCounter = 0;
 		}
 
@@ -304,6 +310,18 @@ class Parser {
 
 			this.processHeader(Buffer.alloc(0));
 		}
+	}
+
+	mainStreamFinish () {
+		this.inStreamFinished = true;
+
+		if (this.pendingFileStreams === 0) this.finalize();
+	}
+
+	fileStreamFinish () {
+		this.pendingFileStreams--;
+
+		if (this.inStreamFinished) this.finalize();
 	}
 
 	finalize () {
