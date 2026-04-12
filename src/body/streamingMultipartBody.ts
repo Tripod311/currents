@@ -65,7 +65,7 @@ class Parser {
 	private chunkTimeout: ReturnType<typeof setTimeout>;
 	private requestTimeout: ReturnType<typeof setTimeout>;
 
-	private pendingFileStreams = 0;
+	private pendingFileStreams: Writable[] = [];
 	private inStreamFinished = false;
 
 	constructor (options: StreamingMultipartOptions, boundary: string, stream: Readable) {
@@ -260,9 +260,12 @@ class Parser {
 		if (this.fileStream === null) {
 			this.tmpFileName = this.options.tmpDir + "/" + crypto.randomBytes(32).toString('hex');
 			this.fileStream = fs.createWriteStream(this.tmpFileName);
-			this.pendingFileStreams++;
-			this.fileStream.on("close", this.fileStreamFinish.bind(this));
+
+			this.pendingFileStreams.push(this.fileStream);
+
+			this.fileStream.on("close", this.fileStreamFinish.bind(this, this.fileStream));
 			this.fileStream.on("error", this.fileStreamFailed.bind(this));
+
 			this.fileByteCounter = 0;
 		}
 
@@ -317,13 +320,13 @@ class Parser {
 	mainStreamFinish () {
 		this.inStreamFinished = true;
 
-		if (this.pendingFileStreams === 0) this.finalize();
+		if (this.pendingFileStreams.length === 0) this.finalize();
 	}
 
-	fileStreamFinish () {
-		this.pendingFileStreams--;
+	fileStreamFinish (stream: Writable) {
+		this.pendingFileStreams = this.pendingFileStreams.filter(st => st !== stream);
 
-		if (this.pendingFileStreams === 0 && this.inStreamFinished) this.finalize();
+		if (this.pendingFileStreams.length === 0 && this.inStreamFinished) this.finalize();
 	}
 
 	fileStreamFailed (err: any) {
