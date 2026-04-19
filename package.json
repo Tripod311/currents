@@ -1,6 +1,6 @@
 {
   "name": "@tripod311/currents",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Lightweight pipeline API constructor",
   "keywords": [
     "js",
