@@ -77,9 +77,8 @@ class Parser {
 		this.stream = stream;
 
 		this.stream.ondata(this.processChunk.bind(this));
-		this.stream.onend(this.finalize.bind(this));
+		this.stream.onend(this.mainStreamFinish.bind(this));
 		this.stream.onclose(this.handleClose.bind(this));
-		this.stream.onfinish(this.mainStreamFinish.bind(this));
 
 		this.readyPromise = new Promise((resolve, reject) => {
 			this.resolve = resolve;

@@ -5,7 +5,6 @@ export abstract class AdapterStream {
 	abstract ondata (callback: any): void;
 	abstract onend (callback: any): void;
 	abstract onclose (callback: any): void;
-	abstract onfinish (callback: any): void;
 }
 
 export interface AdapterRequest {
@@ -14,7 +13,7 @@ export interface AdapterRequest {
 	method: string;
 	path: string;
 	bodyStream: AdapterStream;
-	end: (status: number, headers: Record<string, string | string[]>, data: Uint8Array | Buffer | Readable, contentLength?: number) => void;
+	end: (status: number, headers: Record<string, string | string[]>, data: any, contentLength?: number) => void;
 }
 
 export abstract class Adapter {

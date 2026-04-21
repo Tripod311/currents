@@ -36,10 +36,6 @@ export class ReadableWrapper extends AdapterStream {
 	onclose (callback: any) {
 		this.stream.on("close", callback);
 	}
-
-	onfinish (callback: any) {
-		this.stream.on("finish", callback);
-	}
 }
 
 export class NodeAdapter extends Adapter {

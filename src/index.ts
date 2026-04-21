@@ -21,9 +21,10 @@ import type { SecurityHeadersOptions } from "./security.js"
 import type { StreamingMultipartOptions, StreamingMultipartResult } from "./body/streamingMultipartBody.js"
 
 import { Adapter, AdapterStream } from "./adapter/adapter.js"
-import { NodeAdapter } from "./adapter/nodeAdapter.js"
 import type { CurrentsOptions } from "./adapter/nodeAdapter.js"
 import type { AdapterRequest } from "./adapter/adapter.js"
+import { NodeAdapter } from "./adapter/nodeAdapter.js"
+import { CFRequestWrapper, CFAdapter } from "./adapter/CFAdapter.js"
 
 export type {
 	CurrentsOptions,
@@ -56,5 +57,7 @@ export {
 	StreamingMultipartFile,
 	Adapter,
 	AdapterStream,
-	NodeAdapter
+	NodeAdapter,
+	CFRequestWrapper,
+	CFAdapter
 }
