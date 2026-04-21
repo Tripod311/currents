@@ -1,32 +1,20 @@
 import { Readable } from "stream"
-import { IncomingMessage, ServerResponse } from "http"
-import type { ServerHttp2Stream, IncomingHttpHeaders } from "http2"
+import type { AdapterRequest } from "./adapter/adapter.js"
 
-export interface RawHttp1 {
-	httpVersion: 1;
-	req: IncomingMessage;
-	res: ServerResponse;
-}
+const encoder = new TextEncoder();
 
-export interface RawHttp2 {
-	httpVersion: 2;
-	stream: ServerHttp2Stream;
-	headers: IncomingHttpHeaders;
-}
-
-export type RawHttp = RawHttp1 | RawHttp2;
-
-export class Context {
-	public raw: RawHttp;
+export default class Context {
+	public raw: AdapterRequest;
 	private _finished: boolean = false;
 	private _notFound: boolean = false;
-	/* request part */
+	/* adapter fills these */
 	public method: string;
 	public path: string;
 	public headers: Record<string, string>;
+	public query!: URLSearchParams;
+	/* request part */
 	public cookies: Record<string, string> = {};
 	public params: Record<string, string> = {};
-	public query!: URLSearchParams;
 	public body: any;
 	/* for custom data */
 	public locals: Record<string, any> = {};
@@ -34,18 +22,12 @@ export class Context {
 	private _status: number = 200;
 	private _responseHeaders: Record<string, string | string[]> = {};
 
-	constructor (raw: RawHttp) {
+	constructor (raw: AdapterRequest) {
 		this.raw = raw;
 
-		if (raw.httpVersion === 1) {
-			this.headers = raw.req.headers as Record<string,string>;
-			this.method = raw.req.method as string;
-			this.path = raw.req.url as string;
-		} else {
-			this.headers = raw.headers as Record<string,string>;
-			this.method = this.headers[":method"] as string;
-			this.path = this.headers[":path"] as string;
-		}
+		this.headers = raw.headers;
+		this.method = raw.method;
+		this.path = raw.path;
 	}
 
 	parsePath () {
@@ -76,68 +58,26 @@ export class Context {
 
 	json (data: any) {
 		this.responseHeader("Content-Type", "application/json");
-		this.send(Buffer.from(JSON.stringify(data), "utf-8"));
+		this.send(encoder.encode(JSON.stringify(data)));
 	}
 
 	text (data: string) {
 		this.responseHeader("Content-Type", "text/plain");
-		this.send(Buffer.from(data, "utf-8"));
+		this.send(encoder.encode(data));
 	}
 
-	binary (data: Buffer | Readable) {
+	binary (data: Uint8Array | Buffer | Readable) {
 		this.responseHeader("Content-Type", "application/octet-stream");
 		this.send(data);
 	}
 
-	send (data: Buffer | Readable, contentLength?: number) {
-		if (Buffer.isBuffer(data)) {
-			this._responseHeaders["Content-Length"] = data.length.toString();
-		} else {
-			if (contentLength === undefined) {
-				throw new Error("Context.send must be provided with contentLength when sending Readable");
-			}
-
-			this._responseHeaders["Content-Length"] = contentLength!.toString();
-		}
-
-		if (this.raw.httpVersion === 1) {
-			this.raw.res.writeHead(this._status, this._responseHeaders);
-
-			if (data instanceof Readable) {
-				data.pipe(this.raw.res);
-			} else {
-				this.raw.res.end(data);
-			}
-		} else {
-			this.raw.stream.respond({
-				":status": this._status,
-				...this._responseHeaders
-			});
-
-			if (data instanceof Readable) {
-				data.pipe(this.raw.stream);
-			} else {
-				this.raw.stream.end(data);
-			}
-		}
-
+	send (data: Uint8Array | Buffer | Readable, contentLength?: number) {
+		this.raw.end(this._status, this._responseHeaders, data, contentLength);
 		this._finished = true;
 	}
 
 	end () {
-		if (this.raw.httpVersion === 1) {
-			this.raw.res.writeHead(this._status, this._responseHeaders);
-
-			this.raw.res.end();
-		} else {
-			this.raw.stream.respond({
-				":status": this._status,
-				...this._responseHeaders
-			});
-
-			this.raw.stream.end();
-		}
-
+		this.raw.end(this._status, this._responseHeaders, new Uint8Array(0), 0);
 		this._finished = true;
 	}
 

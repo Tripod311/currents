@@ -1,4 +1,4 @@
-import { Context } from "../context.js"
+import Context from "../context.js"
 import TextBody from "./textBody.js"
 
 function urlParamsToObject(params: URLSearchParams): Record<string, string | string[]> {

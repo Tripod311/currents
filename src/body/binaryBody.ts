@@ -1,16 +1,23 @@
-import { Context } from "../context.js"
+import Context from "../context.js"
 
 export default function BinaryBody (ctx: Context): Promise<void> {
 	return new Promise((resolve, reject) => {
-		ctx.body = Buffer.alloc(0);
+		const chunks: Uint8Array[] = [];
 
-		const stream = ctx.raw.httpVersion === 1 ? ctx.raw.req : ctx.raw.stream;
-
-		stream.on('data', (chunk) => {
-			ctx.body = Buffer.concat([ctx.body, chunk]);
+		ctx.raw.bodyStream.ondata((chunk: Uint8Array) => {
+			chunks.push(chunk);
 		});
 
-		stream.on('end', () => {
+		ctx.raw.bodyStream.onend(() => {
+			const length = chunks.reduce((acc, chunk) => { return acc + chunk.length }, 0);
+			ctx.body = new Uint8Array(length);
+
+			let offset = 0;
+			for (const chunk of chunks) {
+				ctx.body.set(chunk, offset);
+				offset += chunk.length;
+			}
+
 			resolve();
 		});
 	});

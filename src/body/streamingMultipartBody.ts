@@ -1,7 +1,8 @@
 import crypto from "crypto"
-import { Readable, Writable } from "stream"
+import { Writable } from "stream"
+import { AdapterStream } from "../adapter/adapter.js"
 import fs from "fs"
-import { Context } from "../context.js"
+import Context from "../context.js"
 
 export interface StreamingMultipartOptions {
 	tmpDir: string;
@@ -44,7 +45,7 @@ class Parser {
 	private options: StreamingMultipartOptions;
 	private firstBoundary: Buffer;
 	private centerBoundary: Buffer;
-	private stream: Readable;
+	private stream: AdapterStream;
 	private state: 'boundary' | 'header' | 'body' | 'file' | 'end' | 'error' = 'boundary';
 	public readyPromise: Promise<void>;
 	private resolve!: () => void;
@@ -69,16 +70,16 @@ class Parser {
 	private pendingFileStreams: Writable[] = [];
 	private inStreamFinished = false;
 
-	constructor (options: StreamingMultipartOptions, boundary: string, stream: Readable) {
+	constructor (options: StreamingMultipartOptions, boundary: string, stream: AdapterStream) {
 		this.options = options;
 		this.firstBoundary = Buffer.from('--' + boundary);
 		this.centerBoundary = Buffer.from('\r\n--' + boundary);
 		this.stream = stream;
 
-		this.stream.on("data", this.processChunk.bind(this));
-		this.stream.on("end", this.finalize.bind(this));
-		this.stream.on("close", this.handleClose.bind(this));
-		this.stream.on("finish", this.mainStreamFinish.bind(this));
+		this.stream.ondata(this.processChunk.bind(this));
+		this.stream.onend(this.finalize.bind(this));
+		this.stream.onclose(this.handleClose.bind(this));
+		this.stream.onfinish(this.mainStreamFinish.bind(this));
 
 		this.readyPromise = new Promise((resolve, reject) => {
 			this.resolve = resolve;
@@ -430,7 +431,7 @@ export default function StreamingMultipartBody (options: StreamingMultipartOptio
 		validateOptions(ctx, options);
 		const boundary = readBoundary(ctx);
 
-		const stream = ctx.raw.httpVersion === 1 ? ctx.raw.req : ctx.raw.stream;
+		const stream = ctx.raw.bodyStream;
 
 		const parser = new Parser(options, boundary, stream);
 

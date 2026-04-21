@@ -1,4 +1,4 @@
-import { Context } from "./context.js"
+import Context from "./context.js"
 
 export interface SecurityHeadersOptions {
 	contentTypeOptions?: boolean;

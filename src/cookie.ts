@@ -1,5 +1,4 @@
-import crypto from "crypto"
-import { Context } from "./context.js"
+import Context from "./context.js"
 
 export interface CookieOptions {
 	maxAge?: number;
@@ -13,13 +12,45 @@ export interface CookieOptions {
 
 let CookieSecret: string | undefined = undefined;
 
-function sign(value: string): string {
-	return crypto.createHmac("sha256", CookieSecret as string).update(value).digest("base64url");
+const encoder = new TextEncoder()
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+
+  return result === 0
 }
 
-function verify(value: string, signature: string): boolean {
-	const expected = sign(value);
-	return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+function base64url(bytes: Uint8Array): string {
+  let str = btoa(String.fromCharCode(...bytes))
+  return str.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
+async function sign(value: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  )
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(value)
+  )
+
+  return base64url(new Uint8Array(signature))
+}
+
+async function verify(value: string, signature: string, secret: string): Promise<boolean> {
+  const expected = await sign(value, secret)
+  return timingSafeEqual(expected, signature)
 }
 
 export function ParseCookies (secret?: string) {
@@ -44,7 +75,7 @@ export function ParseCookies (secret?: string) {
 					const rawValue = val.slice(0, sigIndex);
 					const sig = val.slice(sigIndex + 5);
 
-					if (verify(rawValue, sig)) {
+					if (await verify(rawValue, sig, CookieSecret)) {
 						ctx.cookies[key] = rawValue;
 					}
 				}
@@ -55,11 +86,11 @@ export function ParseCookies (secret?: string) {
 	}
 }
 
-export function SetCookie (ctx: Context, name: string, value: string, options: CookieOptions) {
+export async function SetCookie (ctx: Context, name: string, value: string, options: CookieOptions) {
 	let cookieValue = encodeURIComponent(value);
 
 	if (CookieSecret !== undefined) {
-		const sig = sign(value);
+		const sig = await sign(value, CookieSecret);
 		cookieValue = encodeURIComponent(`${value}.sig-${sig}`);
 	}
 

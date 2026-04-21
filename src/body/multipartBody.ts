@@ -1,4 +1,4 @@
-import { Context } from "../context.js"
+import Context from "../context.js"
 import BinaryBody from "./binaryBody.js"
 
 const RN_MARK_2 = Buffer.from("\r\n\r\n", "utf8");

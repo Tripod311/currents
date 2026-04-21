@@ -1,4 +1,4 @@
-import { Context } from "./context.js"
+import Context from "./context.js"
 
 export type RouteHandler = (ctx: Context) => Promise<void>;
 

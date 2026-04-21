@@ -1,26 +1,14 @@
-import fs from "fs"
-import http, { Server as HttpServer, IncomingMessage, ServerResponse } from "http"
-import https, { Server as HttpsServer } from "https"
-import http2 from "http2"
-import type { Http2Server, Http2SecureServer, ServerHttp2Stream, IncomingHttpHeaders } from "http2"
-
+import type { Adapter } from "./adapter/adapter.js"
+import { NodeAdapter } from "./adapter/nodeAdapter.js"
 import { Router } from "./router.js"
 import type { RouteMatch, RouteHandler } from "./router.js"
-import { Context } from "./context.js"
+import Context from "./context.js"
 
-export interface CurrentsOptions {
-	forceHTTPVersion?: 1 | 2;
-	certificates?: { cert: string, key: string, ca?: string };
-}
-
-type Server = HttpServer | HttpsServer | Http2Server | Http2SecureServer;
 type Method = "ANY" | "GET" | "POST" | "PUT" | "DELETE";
 export type ErrorHandler = (err: any, ctx: Context) => Promise<void>;
 
 export class Currents {
-	public httpVersion: number;
-	public server: Server;
-
+	public adapter: Adapter;
 	private routesTable: Record<Method, Router> = {
 		"ANY": new Router(),
 		"GET": new Router(),
@@ -31,83 +19,49 @@ export class Currents {
 	private _notFoundHandler: RouteHandler[];
 	private _errorHandler: ErrorHandler;
 
-	constructor (version: number, server: Server) {
-		this.httpVersion = version;
-		this.server = server;
-
-		if (Currents.isHttp2Server(this.server)) {
-			this.server.on("stream", this.handleRequestV2.bind(this));
-		} else {
-			this.server.on("request", this.handleRequestV1.bind(this));
-		}
+	constructor (adapter: Adapter) {
+		this.adapter = adapter;
+		this.adapter.handler = this.processRequest.bind(this);
 
 		this._errorHandler = Currents.defaultErrorHandler;
 		this._notFoundHandler = [Currents.defaultNotFoundHandler];
 	}
 
-	handleRequestV1 (req: IncomingMessage, res: ServerResponse) {
-		const ctx = new Context({
-			httpVersion: 1,
-			req: req,
-			res: res
-		});
-
+	private async processRequest (ctx: Context) {
 		try {
 			ctx.parsePath();
 
-			this.processRequest(ctx);
+			let router: Router;
+
+			switch (ctx.method) {
+				case "GET":
+					router = this.routesTable["GET"];
+					break;
+				case "POST":
+					router = this.routesTable["POST"];
+					break;
+				case "PUT":
+					router = this.routesTable["PUT"];
+					break;
+				case "DELETE":
+					router = this.routesTable["DELETE"];
+					break;
+				default:
+					router = this.routesTable["ANY"];
+					break;
+			}
+
+			const match = router.match(ctx.path);
+
+			if (match !== null) {
+				ctx.params = match.params;
+
+				await this.runHandlers(ctx, match.handlers);
+			} else {
+				await this.runHandlers(ctx, this._notFoundHandler, true);
+			}
 		} catch (err: any) {
-			// only if path is incorrect
-			this._errorHandler(`Bad request: ${err.toString()}`, ctx);
-		}
-	}
-
-	handleRequestV2 (stream: ServerHttp2Stream, headers: IncomingHttpHeaders) {
-		const ctx = new Context({
-			httpVersion: 2,
-			stream: stream,
-			headers: headers
-		});
-
-		try {
-			ctx.parsePath();
-
-			this.processRequest(ctx);
-		} catch (err: any) {
-			// only if path is incorrect
-			this._errorHandler(`Bad request: ${err.toString()}`, ctx);
-		}
-	}
-
-	private processRequest (ctx: Context) {
-		let router: Router;
-
-		switch (ctx.method) {
-			case "GET":
-				router = this.routesTable["GET"];
-				break;
-			case "POST":
-				router = this.routesTable["POST"];
-				break;
-			case "PUT":
-				router = this.routesTable["PUT"];
-				break;
-			case "DELETE":
-				router = this.routesTable["DELETE"];
-				break;
-			default:
-				router = this.routesTable["ANY"];
-				break;
-		}
-
-		const match = router.match(ctx.path);
-
-		if (match !== null) {
-			ctx.params = match.params;
-
-			this.runHandlers(ctx, match.handlers);
-		} else {
-			this.runHandlers(ctx, this._notFoundHandler, true);
+			await this._errorHandler(`Bad request: ${err.toString()}`, ctx);
 		}
 	}
 
@@ -157,43 +111,12 @@ export class Currents {
 		this._errorHandler = val;
 	}
 
-	static fromOptions (options: CurrentsOptions): Currents {
-		let result: Currents;
-
-		if (options.certificates !== undefined) {
-			const loadedCerts: Record<string, Buffer> = {
-				cert: fs.readFileSync(options.certificates!.cert),
-				key: fs.readFileSync(options.certificates!.key)
-			};
-			if (options.certificates.ca !== undefined) loadedCerts.ca = fs.readFileSync(options.certificates.ca);
-
-			if (options.forceHTTPVersion === 1) {
-				result = new Currents(1, https.createServer(loadedCerts));
-			} else {
-				result = new Currents(2, http2.createSecureServer(loadedCerts));
-			}
-		} else {
-			if (options.forceHTTPVersion === 2) {
-				console.warn(
-					"[Currents] HTTP/2 started without TLS-certificate. " +
-					"Watch out: browsers won't connect in this mode. " +
-					"Use this variant only for local tests or cli/curl APIs."
-				);
-				result = new Currents(2, http2.createServer());
-			} else {
-				result = new Currents(1, http.createServer());
-			}
-		}
-
-		return result;
+	static fromOptions (options: any): Currents {
+		return new Currents(NodeAdapter.fromOptions(options));
 	}
 
-	static fromServer (server: Server): Currents {
-		return new Currents(Currents.isHttp2Server(server) ? 2 : 1, server); 
-	}
-
-	static isHttp2Server(server: HttpServer | HttpsServer | Http2Server | Http2SecureServer): server is Http2Server | Http2SecureServer {
-		return typeof (server as any).on === "function" && "sessionTimeout" in server;
+	static fromServer (server: any): Currents {
+		return new Currents(NodeAdapter.fromServer(server)); 
 	}
 
 	static async defaultErrorHandler (err: any, ctx: Context) {

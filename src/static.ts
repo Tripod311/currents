@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 import mime from "mime-types"
-import { Context } from "./context.js"
+import Context from "./context.js"
 
 export interface ServeStaticOptions {
 	basePath: string;
