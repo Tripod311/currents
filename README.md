@@ -326,6 +326,18 @@ app.get('/*', [
 
 Passing asterisk in allowedHeaders field will make cors reply with access-control-request-headers that browser requires.
 
+Also you may need to explicitly handle `OPTIONS` requests, especially in serverless environments.
+
+```ts
+app.any("/*", baseChain.concat([
+	async (ctx: Context) => {
+		if (ctx.method === "OPTIONS") {
+			ctx.status(204).end();
+		}
+	}
+]));
+```
+
 ---
 
 ### Security headers

@@ -69,6 +69,8 @@ export class CFAdapter extends Adapter {
 				path: url.pathname + url.search,
 				bodyStream: new CFRequestWrapper(request),
 				end: (status: number, headers: Record<string, string | string[]>, data: any, contentLength?: number) => {
+					if (data?.length === 0) data = null;
+
 					resolve(new Response(data, {
 						status: status,
 						headers: recordToHeaders(headers)
