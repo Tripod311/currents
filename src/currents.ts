@@ -1,5 +1,4 @@
 import type { Adapter } from "./adapter/adapter.js"
-import { NodeAdapter } from "./adapter/nodeAdapter.js"
 import { Router } from "./router.js"
 import type { RouteMatch, RouteHandler } from "./router.js"
 import Context from "./context.js"
@@ -109,14 +108,6 @@ export class Currents {
 
 	set errorHandler (val: ErrorHandler) {
 		this._errorHandler = val;
-	}
-
-	static fromOptions (options: any): Currents {
-		return new Currents(NodeAdapter.fromOptions(options));
-	}
-
-	static fromServer (server: any): Currents {
-		return new Currents(NodeAdapter.fromServer(server)); 
 	}
 
 	static async defaultErrorHandler (err: any, ctx: Context) {

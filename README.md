@@ -1,20 +1,43 @@
 # Currents
 
-**Currents** is a lightweight pipeline-based API constructor, designed to cover 90% of API use cases.
+**Currents** is a lightweight pipeline-based API constructor designed to cover ~90% of typical backend/API use cases with minimal abstraction and maximum control.
+
+---
 
 ## Features
 
-* 🚦 Routing
-* 🌍 CORS headers
-* 🍪 Cookie management
-* 🛡️ Security headers
-* 📂 Static file delivery
-* 📦 Parsing of popular request bodies (JSON, multipart, etc.)
-* ⚡ HTTP/2 support
+- 🚦 Routing  
+- 🌍 CORS headers  
+- 🍪 Cookie management  
+- 🛡️ Security headers  
+- 📂 Static file delivery (Node.js only)  
+- 📦 Body parsing (JSON, form, multipart, etc.)  
+- ⚡ HTTP/2 support (Node.js)  
+- ☁️ **Serverless-ready (Cloudflare Workers and similar environments via adapters)**  
+
+---
 
 ## Concept
 
-Currents is **pipeline-based**: every route is treated as a chain of handlers. Instead of plugin registration, you just add or remove handlers from the chain. This gives you full control over every route.
+Currents is **pipeline-based**.
+
+Each route is defined as a chain of handlers:
+
+```ts
+app.get("/route", [
+  middleware1,
+  middleware2,
+  handler
+]);
+```
+
+Instead of plugin systems or hidden lifecycle hooks, you directly control:
+
+- execution order
+- data flow (`ctx`)
+- error handling
+
+This makes Currents predictable, flexible, and easy to extend.
 
 ---
 
@@ -26,45 +49,109 @@ npm install @tripod311/currents
 
 ---
 
-## Example
+## Running in Serverless Environments
+
+Currents is designed to be **runtime-agnostic**.
+
+The core package (`@tripod311/currents`) does not depend on Node.js APIs and can run in environments like:
+
+- Cloudflare Workers  
+- Edge runtimes  
+- other serverless platforms  
+
+This is achieved through **adapters**.
+
+---
+
+### 🧠 How it works
+
+Currents separates:
+
+Request → Context → Handlers → Response
+
+Adapters are responsible for:
+
+1. Converting runtime request → `Context`
+2. Running Currents pipeline
+3. Converting result → runtime response
+
+---
+
+### ⚠️ Important limitations in serverless
+
+Serverless runtimes (like Cloudflare Workers) **do not support Node.js APIs**, so:
+
+- ❌ No `fs`
+- ❌ No Node streams (`req.pipe`, etc.)
+- ❌ No native HTTP server
+
+Because of this:
+
+- Anything from `@tripod311/currents/node` **will not work**
+- Use only default entry
+
+---
+
+### Example: Cloudflare Workers
 
 ```ts
-import { Currents, Context, JsonBody, MultipartBody, ServeStatic } from "@tripod311/currents"
+import {
+  Currents,
+  Cors,
+  SecurityHeaders,
+  Context
+} from "@tripod311/currents";
 
-const app = Currents.fromOptions({});
+import type { RouteHandler } from "@tripod311/currents";
+import { CFAdapter } from "@tripod311/currents/cf";
+
+const adapter = new CFAdapter();
+const app = new Currents(adapter);
+
+const baseChain: RouteHandler[] = [
+  Cors(),
+  SecurityHeaders()
+];
+
+app.get("/", baseChain.concat([
+  async (ctx: Context) => {
+    ctx.json({ hello: "world" });
+  }
+]));
+
+export default {
+  fetch(request: Request, env: any, executionCtx: any) {
+    return adapter.processRequest(request, env, executionCtx);
+  }
+};
+```
+
+---
+
+## Example (Node.js)
+
+```ts
+import { Currents, Context, JsonBody } from "@tripod311/currents";
+import { MultipartBody, ServeStatic, NodeAdapter } from "@tripod311/currents/node";
+
+const adapter = NodeAdapter.fromOptions({});
+const app = new Currents(adapter);
 
 app.get("/", [
-	(ctx: Context) => {
-		ctx.text("Hello world");
-	}
+  (ctx: Context) => {
+    ctx.text("Hello world");
+  }
 ]);
 
 app.post('/table/:id', [
-	JsonBody,
-	(ctx: Context) => {
-		const body = ctx.body as { some: "body" };
-		ctx.json({ hello: "world" });
-	}
+  JsonBody,
+  (ctx: Context) => {
+    const body = ctx.body as { some: "body" };
+    ctx.json({ hello: "world" });
+  }
 ]);
 
-app.put('/images/*', [
-	MultipartBody,
-	(ctx: Context) => {
-		// some operations with body
-		ctx.binary(result_buffer);
-	}
-]);
-
-app.get('/images/', [
-	ServeStatic({
-		basePath: '/images',
-		rootDir: '/home/me/images',
-		cacheControl: ["public", "max-age=0"],
-		fallback: 'default.png'
-	})
-])
-
-app.server.listen({ port: 80 });
+adapter.server.listen({ port: 80 });
 ```
 
 ---
@@ -78,21 +165,24 @@ The main application class. Holds the server and provides the interface for rout
 #### Constructor
 
 ```ts
-Currents.fromOptions({
+import { Currents } from "@tripod311/currents"
+import { NodeAdapter } from "@tripod311/currents/node"
+
+const app = new Currents(NodeAdapter.fromOptions({
 	forceHttpVersion?: 1 | 2,
 	certificates: {
 		cert: "path-to-cert",
 		key: "path-to-key",
 		ca?: "path-to-ca"
 	}
-})
+}));
 ```
 
 * Creates the app and sets up the server with given configuration.
 * If you don’t force HTTP version: with certificates → defaults to **HTTP/2**, without → defaults to **HTTP/1**.
 
 ```ts
-Currents.fromServer(server: HttpServer | Http2Server)
+const app = new Currents(NodeAdapter.fromServer(server: HttpServer | Http2Server));
 ```
 
 * Create Currents app with an already configured server.
@@ -159,15 +249,16 @@ Context represents a single request/response.
 Default handlers to populate `ctx.body`:
 
 ```ts
-import { BinaryBody, TextBody, JsonBody, FormBody, MultipartBody } from "@tripod311/currents"
+import { BinaryBody, TextBody, JsonBody, FormBody } from "@tripod311/currents"
+import { MultipartBody, StreamingMultipartBody } from "@tripod311/currents/node"
 ```
 
 * **BinaryBody** → dumps buffer into body
 * **TextBody** → UTF-8 string body
 * **JsonBody** → parses JSON
 * **FormBody** → parses `application/x-www-form-urlencoded`
-* **MultipartBody** → parses multipart bodies (only for tests, stores request in memory, can cause OOM errors and vulnerable to attacks)
-* **StreamingMultipartBody** → streaming multipart/form-data parser, for real cases
+* **MultipartBody** → parses multipart bodies (only for tests, stores request in memory, can cause OOM errors and vulnerable to attacks). Will not work in serverless environment.
+* **StreamingMultipartBody** → streaming multipart/form-data parser, for real cases. Will not work in serverless environment.
 
 ---
 
@@ -178,9 +269,9 @@ import { Context, ParseCookies, SetCookie } from "@tripod311/currents"
 
 app.get('/', [
 	ParseCookies(),
-	(ctx: Context) => {
+	async (ctx: Context) => {
 		ctx.cookies; // filled with cookies
-		SetCookie(ctx, 'myCookie', 'myValue', {
+		await SetCookie(ctx, 'myCookie', 'myValue', {
 			maxAge?: number,
 			expires?: Date,
 			httpOnly?: boolean,
@@ -200,7 +291,7 @@ You can provide a secret string to `ParseCookies` if you want signed cookies.
 ### Static files
 
 ```ts
-import { ServeStatic } from "@tripod311/currents"
+import { ServeStatic } from "@tripod311/currents/node"
 
 app.get('/*', [
 	ServeStatic({
@@ -264,8 +355,8 @@ app.get('/*', [
 ### Streaming Multipart
 
 ``` ts
-import { StreamingMultipartBody } from "@tripod311/currents"
-import type { StreamingMultipartResult, StreamingMultipartFile, StreamingMultipartOptions } from "@tripod311/currents"
+import { StreamingMultipartBody } from "@tripod311/currents/node"
+import type { StreamingMultipartResult, StreamingMultipartFile, StreamingMultipartOptions } from "@tripod311/currents/node"
 
 app.post('/*', [
     StreamingMultipartBody({

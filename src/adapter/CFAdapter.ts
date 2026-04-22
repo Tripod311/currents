@@ -55,13 +55,18 @@ function recordToHeaders(input: Record<string, string | string[]>): Headers {
 }
 
 export class CFAdapter extends Adapter {
-	processRequest (request: Request): Promise<Response> {
+	processRequest (request: Request, env: any): Promise<Response> {
 		return new Promise((resolve, reject) => {
+			const url = new URL(request.url);
+
 			const aReq: AdapterRequest = {
-				rawHTTP: request,
+				rawHTTP: {
+					request: request,
+					env: env
+				},
 				headers:  Object.fromEntries(request.headers),
 				method: request.method as string,
-				path: request.url as string,
+				path: url.pathname + url.search,
 				bodyStream: new CFRequestWrapper(request),
 				end: (status: number, headers: Record<string, string | string[]>, data: any, contentLength?: number) => {
 					resolve(new Response(data, {

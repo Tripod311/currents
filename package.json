@@ -11,10 +11,14 @@
   "license": "MIT",
   "author": "Tripod ind.tripod@gmail.com",
   "type": "module",
-  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./cf": "./dist/cf.js",
+    "./node": "./dist/node.js"
   },
   "files": [
     "dist",

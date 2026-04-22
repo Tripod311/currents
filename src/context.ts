@@ -1,4 +1,3 @@
-import { Readable } from "stream"
 import type { AdapterRequest } from "./adapter/adapter.js"
 
 const encoder = new TextEncoder();
@@ -66,12 +65,12 @@ export default class Context {
 		this.send(encoder.encode(data));
 	}
 
-	binary (data: Uint8Array | Buffer | Readable) {
+	binary (data: any) {
 		this.responseHeader("Content-Type", "application/octet-stream");
 		this.send(data);
 	}
 
-	send (data: Uint8Array | Buffer | Readable, contentLength?: number) {
+	send (data: any, contentLength?: number) {
 		this.raw.end(this._status, this._responseHeaders, data, contentLength);
 		this._finished = true;
 	}
