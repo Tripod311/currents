@@ -1,5 +1,6 @@
 import Context from "../context.js"
-import BinaryBody from "./binaryBody.js"
+import BinaryBody, { DEFAULT_OPTIONS } from "./binaryBody.js"
+import type { BodyOptions } from "./binaryBody.js"
 
 const RN_MARK_2 = Buffer.from("\r\n\r\n", "utf8");
 const RN_MARK = '\r\n';
@@ -12,21 +13,25 @@ interface MultipartFile {
 
 type MultipartValue = string | MultipartFile;
 
-export default async function MultipartBody (ctx: Context) {
-	await BinaryBody(ctx);
-
-	let ct = ctx.headers["content-type"].split(';');
-	let boundary = "";
-	for (let i=0; i<ct.length; i++) {
-		let str = ct[i].trim();
-		if (str.match(/^boundary\=.*$/)) {
-			boundary = str.slice(str.indexOf('=')+1);
-			break;
+export default async function MultipartBody (options: BodyOptions = DEFAULT_OPTIONS) {
+	const binaryCall = BinaryBody(options);
+	
+	return async (ctx: Context) => {
+		await binaryCall(ctx);
+		
+		let ct = ctx.headers["content-type"].split(';');
+		let boundary = "";
+		for (let i=0; i<ct.length; i++) {
+			let str = ct[i].trim();
+			if (str.match(/^boundary\=.*$/)) {
+				boundary = str.slice(str.indexOf('=')+1);
+				break;
+			}
 		}
-	}
-	if (!boundary) throw new Error("MultipartBody error: No boundary");
+		if (!boundary) throw new Error("MultipartBody error: No boundary");
 
-	ctx.body = parseMultipart(ctx.body, Buffer.from(boundary, "utf8"));
+		ctx.body = parseMultipart(ctx.body, Buffer.from(boundary, "utf8"));
+	}
 }
 
 function deQuote (str: string): string {

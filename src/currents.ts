@@ -3,17 +3,12 @@ import { Router } from "./router.js"
 import type { RouteMatch, RouteHandler } from "./router.js"
 import Context from "./context.js"
 
-type Method = "ANY" | "GET" | "POST" | "PUT" | "DELETE";
 export type ErrorHandler = (err: any, ctx: Context) => Promise<void>;
 
 export class Currents {
 	public adapter: Adapter;
-	private routesTable: Record<Method, Router> = {
-		"ANY": new Router(),
-		"GET": new Router(),
-		"POST": new Router(),
-		"PUT": new Router(),
-		"DELETE": new Router()
+	private routesTable: Record<string, Router> = {
+		"ANY": new Router()
 	};
 	private _notFoundHandler: RouteHandler[];
 	private _errorHandler: ErrorHandler;
@@ -30,25 +25,7 @@ export class Currents {
 		try {
 			ctx.parsePath();
 
-			let router: Router;
-
-			switch (ctx.method) {
-				case "GET":
-					router = this.routesTable["GET"];
-					break;
-				case "POST":
-					router = this.routesTable["POST"];
-					break;
-				case "PUT":
-					router = this.routesTable["PUT"];
-					break;
-				case "DELETE":
-					router = this.routesTable["DELETE"];
-					break;
-				default:
-					router = this.routesTable["ANY"];
-					break;
-			}
+			let router: Router = this.routesTable[ctx.method] || this.routesTable["ANY"];
 
 			const match = router.match(ctx.path);
 
@@ -60,7 +37,7 @@ export class Currents {
 				await this.runHandlers(ctx, this._notFoundHandler, true);
 			}
 		} catch (err: any) {
-			await this._errorHandler(`Bad request: ${err.toString()}`, ctx);
+			await this._errorHandler(`Bad request: ${err}`, ctx);
 		}
 	}
 
@@ -83,23 +60,57 @@ export class Currents {
 	}
 
 	any (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["ANY"] === undefined) this.routesTable["ANY"] = new Router();
+
 		this.routesTable["ANY"].add(path, handlers);
 	}
 
 	get (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["GET"] === undefined) this.routesTable["GET"] = new Router();
+
 		this.routesTable["GET"].add(path, handlers);
 	}
 
 	post (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["POST"] === undefined) this.routesTable["POST"] = new Router();
+
 		this.routesTable["POST"].add(path, handlers);
 	}
 
 	put (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["PUT"] === undefined) this.routesTable["PUT"] = new Router();
+
 		this.routesTable["PUT"].add(path, handlers);
 	}
 
 	delete (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["DELETE"] === undefined) this.routesTable["DELETE"] = new Router();
+
 		this.routesTable["DELETE"].add(path, handlers);
+	}
+
+	head (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["HEAD"] === undefined) this.routesTable["HEAD"] = new Router();
+
+		this.routesTable["HEAD"].add(path, handlers);
+	}
+
+	options (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["OPTIONS"] === undefined) this.routesTable["OPTIONS"] = new Router();
+
+		this.routesTable["OPTIONS"].add(path, handlers);
+	}
+
+	patch (path: string, handlers: RouteHandler[]) {
+		if (this.routesTable["PATCH"] === undefined) this.routesTable["PATCH"] = new Router();
+
+		this.routesTable["PATCH"].add(path, handlers);
+	}
+
+	route (method: string, path: string, handlers: RouteHandler[]) {
+		if (this.routesTable[method] === undefined) this.routesTable[method] = new Router();
+
+		this.routesTable[method].add(path, handlers);
 	}
 
 	set notFoundHandler (val: RouteHandler[]) {
@@ -115,9 +126,17 @@ export class Currents {
 		const stack = err instanceof Error ? err.stack : undefined;
 
 		ctx.status(500).text(`An error occurred: ${message}\n${stack}`);
+
+		if (ctx.raw.bodyStream.aborted) {
+			ctx.raw.bodyStream.abort();
+		} else {
+			ctx.raw.bodyStream.discard();
+		}
 	}
 
 	static async defaultNotFoundHandler (ctx: Context) {
 		ctx.status(404).text(`Cannot find ${ctx.path}`);
+
+		ctx.raw.bodyStream.discard();
 	}
 }

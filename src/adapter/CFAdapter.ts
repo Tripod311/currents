@@ -29,6 +29,14 @@ export class CFRequestWrapper extends AdapterStream {
 		this.callbacks.finish = callback;
 	}
 
+	discard () {
+		this.request.body?.cancel();
+	}
+
+	abort () {
+		this.request.body?.cancel();
+	}
+
 	private async readAll () {
 		const data = new Uint8Array(await this.request.arrayBuffer());
 

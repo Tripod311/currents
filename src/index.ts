@@ -8,7 +8,8 @@ import BinaryBody from "./body/binaryBody.js"
 import TextBody from "./body/textBody.js"
 import JsonBody from "./body/jsonBody.js"
 import FormBody from "./body/formBody.js"
-
+	
+import type { BodyOptions } from "./body/binaryBody.js"
 import type { ErrorHandler } from "./currents.js"
 import type { RouteHandler, RouteMatch, Route } from "./router.js"
 import type { ServeStaticOptions } from "./static.js"
@@ -26,7 +27,8 @@ export type {
 	Route,
 	CorsOptions,
 	SecurityHeadersOptions,
-	AdapterRequest
+	AdapterRequest,
+	BodyOptions
 }
 
 export {

@@ -71,11 +71,15 @@ export default class Context {
 	}
 
 	send (data: any, contentLength?: number) {
+		if (this._finished) return;
+
 		this.raw.end(this._status, this._responseHeaders, data, contentLength);
 		this._finished = true;
 	}
 
 	end () {
+		if (this._finished) return;
+
 		this.raw.end(this._status, this._responseHeaders, new Uint8Array(0), 0);
 		this._finished = true;
 	}

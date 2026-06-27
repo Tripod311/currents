@@ -2,9 +2,13 @@ import type { Readable } from "stream"
 import Context from "../context.js"
 
 export abstract class AdapterStream {
+	public aborted = false;
+
 	abstract ondata (callback: any): void;
 	abstract onend (callback: any): void;
 	abstract onclose (callback: any): void;
+	abstract discard (): void;
+	abstract abort (): void;
 }
 
 export interface AdapterRequest {

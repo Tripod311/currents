@@ -4,16 +4,28 @@ import { AdapterStream } from "../adapter/adapter.js"
 import fs from "fs"
 import Context from "../context.js"
 
-export interface StreamingMultipartOptions {
+import type { BodyOptions } from "./binaryBody.js"
+
+export interface StreamingMultipartOptions extends BodyOptions {
 	tmpDir: string;
-	maxRequestSize: number;
 	maxFileSize: number;
 	maxFieldSize: number;
 	maxPartHeaderSize: number;
 	maxParts: number;
 	maxFiles: number;
-	requestTimeout: number;
 	chunkTimeout: number;
+}
+
+const DEFAULT_OPTIONS = {
+	tmpDir: "./tmp",
+    maxRequestSize: 1024 * 1024 * 150,          // 150 MB
+    maxFileSize: 1024 * 1024 * 100,             // 100 MB
+    maxFieldSize: 1024 * 1024 * 10,             // 10 MB
+    maxPartHeaderSize: 1024 * 16,               // 16 KB
+    maxParts: 50,
+    maxFiles: 10,
+    requestTimeout: 1000 * 60 * 5,              // 5 min
+    chunkTimeout: 1000 * 30                     // 30 sec
 }
 
 export class StreamingMultipartFile {
@@ -384,7 +396,7 @@ class Parser {
 	}
 }
 
-function validateOptions (ctx: Context, options: StreamingMultipartOptions) {
+function validateOptions (ctx: Context, options: StreamingMultipartOptions = DEFAULT_OPTIONS) {
 	const contentType = ctx.headers["content-type"];
 
 	if (!contentType) {
@@ -441,6 +453,7 @@ export default function StreamingMultipartBody (options: StreamingMultipartOptio
 			ctx.locals.bodyCleanup = parser.cleanup;
 		} catch (err: any) {
 			await parser.cleanup();
+			stream.aborted = true;
 
 			ctx.status(500).json({
 				error: true,
