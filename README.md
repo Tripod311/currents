@@ -144,7 +144,7 @@ app.get("/", [
 ]);
 
 app.post('/table/:id', [
-  JsonBody,
+  JsonBody(),
   (ctx: Context) => {
     const body = ctx.body as { some: "body" };
     ctx.json({ hello: "world" });
@@ -259,6 +259,40 @@ import { MultipartBody, StreamingMultipartBody } from "@tripod311/currents/node"
 * **FormBody** → parses `application/x-www-form-urlencoded`
 * **MultipartBody** → parses multipart bodies (only for tests, stores request in memory, can cause OOM errors and vulnerable to attacks). Will not work in serverless environment.
 * **StreamingMultipartBody** → streaming multipart/form-data parser, for real cases. Will not work in serverless environment.
+
+To attach body parser, simply add it into handlers chain:
+
+```ts
+import { JsonBody } from "@tripod311/currents"
+
+app.post('/my/route', [
+	JsonBody(),
+	// other handlers
+])
+```
+
+All body parsers, except for streaming multipart, can be initialized with options. If options are not present, they will use default values:
+
+```ts
+{
+	maxRequestSize: 1024 * 1024 * 100, 		// 100 MB
+	requestTimeout: 1000 * 60 * 5  			// 5 minutes
+}
+```
+
+You can override these values by passing your own options:
+
+```ts
+import { JsonBody } from "@tripod311/currents"
+
+app.post('/my/route', [
+	JsonBody({
+		maxRequestSize: 1024 * 1024 * 20,  	// 20 MB
+		requestTimeout: 1000 * 60 					// 1 minute
+	}),
+	// other handlers
+])
+```
 
 ---
 
